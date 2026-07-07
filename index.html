@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Real-Time Health Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Nunito', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        :root {
+            --bg-peach: #fdf4f0; --coral-main: #f48271; --coral-light: rgba(244, 130, 113, 0.15);
+            --card-white: #ffffff; --text-dark: #3a3a3a; --text-muted: #9ca3af;
+            --shadow: 0 8px 20px rgba(0,0,0,0.03);
+            --hr-blue: #2563eb; --hr-blue-light: rgba(37, 99, 235, 0.15);
+            --spo2-green: #2ecc71; --spo2-green-light: rgba(46, 204, 113, 0.15);
+        }
+        body { background-color: var(--bg-peach); color: var(--text-dark); display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow-x: hidden; }
+        .hidden { display: none !important; }
+
+        .form-container { background: var(--card-white); padding: 40px; border-radius: 24px; box-shadow: var(--shadow); width: 90%; max-width: 400px; text-align: center; margin: 20px auto; }
+        .form-container h2 { color: var(--coral-main); margin-bottom: 20px; font-weight: 800;}
+        input { width: 100%; padding: 15px; margin: 10px 0; border: 1px solid #f0f0f0; border-radius: 12px; font-size: 14px; background: #fafafa; outline: none; transition: border 0.3s;}
+        input:focus { border-color: var(--coral-main); }
+        .device-id-input { border: 2px solid var(--coral-main); background: #fffcfb; font-weight: bold;}
+        button.primary-btn { width: 100%; padding: 15px; background: var(--coral-main); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 15px; transition: 0.2s; }
+        button.primary-btn:hover { opacity: 0.9; transform: translateY(-2px); }
+
+        .app-wrapper { display: flex; width: 98%; max-width: 1400px; min-height: 92vh; background: var(--bg-peach); border-radius: 30px; overflow: hidden; margin: 20px 0; position: relative; box-shadow: var(--shadow);}
+        .coral-sidebar { width: 45px; background-color: var(--coral-main); border-radius: 30px 0 0 30px; flex-shrink: 0; }
+        .main-content { flex: 1; display: grid; grid-template-columns: 320px 1fr; padding: 30px; gap: 30px; overflow-y: auto;}
+        .left-col { display: flex; flex-direction: column; gap: 20px; }
+        .right-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+        .card { background: var(--card-white); padding: 25px; border-radius: 24px; box-shadow: var(--shadow); width: 100%; }
+        
+        .profile-card { text-align: center; display: flex; flex-direction: column; align-items: center;}
+        .profile-pic { width: 80px; height: 80px; background: #e0e7ff; border-radius: 50%; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);}
+        .patient-name { font-size: 24px; font-weight: 800; margin: 0; color: var(--text-dark);}
+        .patient-id { font-size: 12px; color: var(--text-muted); margin: 5px 0 15px; font-weight: 600; display: flex; align-items: center; gap: 5px;}
+        .vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left; background: #fafafa; padding: 20px; border-radius: 20px; width: 100%;}
+        .vital-item p { margin: 0; font-size: 12px; color: var(--text-muted); font-weight: 700; }
+        .vital-item h4 { margin: 2px 0 0; font-size: 16px; color: var(--text-dark); font-weight: 800;}
+        .logout-link { margin-top: 15px; font-size: 12px; color: #ef4444; font-weight: 800; cursor: pointer; text-decoration: none; }
+
+        /* Doctor Email Form Styles */
+        .email-card h3 { color: var(--hr-blue); font-size: 16px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #fafafa; font-weight: 800;}
+        .email-input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #f0f0f0; border-radius: 12px; font-size: 13px; background: #fafafa; outline: none; transition: border 0.3s;}
+        .email-textarea { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #f0f0f0; border-radius: 12px; font-size: 13px; background: #fafafa; outline: none; resize: vertical; min-height: 80px;}
+        .email-input:focus, .email-textarea:focus { border-color: var(--hr-blue); }
+        .email-btn { background: var(--hr-blue); margin-top: 5px; }
+
+        .hospital-card h3 { color: var(--coral-main); font-size: 16px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #fafafa; font-weight: 800;}
+        .hospital-item { padding: 12px; border-radius: 12px; background: var(--card-white); margin-bottom: 10px; transition: 0.2s; border: 1px solid #f0f0f0;}
+        .h-name { font-weight: 800; font-size: 13px; margin: 0 0 4px 0; color: var(--text-dark);}
+        .h-dist { font-size: 11px; color: var(--coral-main); font-weight: 800; margin: 0; }
+
+        .header-title { color: var(--coral-main); font-size: 26px; font-weight: 800; margin: 0 0 5px 0;}
+        .header-date { color: var(--text-muted); font-size: 13px; font-weight: 700; margin: 0;}
+
+        .live-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .live-stat-card { background: var(--card-white); padding: 25px; border-radius: 24px; box-shadow: var(--shadow); display: flex; flex-direction: column; justify-content: flex-start;}
+        .live-stat-card p { color: var(--text-muted); font-weight: 800; margin: 0 0 10px; font-size: 13px; display: flex; align-items: center; gap: 5px;}
+        .stat-value-group { display: flex; align-items: baseline; gap: 5px;}
+        .live-stat-card h2 { font-size: 42px; margin: 0; color: var(--text-dark); font-weight: 900; letter-spacing: -1px;}
+        .live-stat-card span { font-size: 16px; color: var(--text-muted); font-weight: 700; }
+
+        .chart-card { padding: 30px; flex: 1; display: flex; flex-direction: column;}
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #fafafa; padding-bottom: 15px;}
+        .chart-header h3 { color: var(--coral-main); font-size: 18px; font-weight: 800; margin:0;}
+        
+        .time-filters { display: flex; gap: 8px; }
+        .t-btn { padding: 6px 14px; border: 1px solid var(--coral-main); border-radius: 20px; background: transparent; color: var(--coral-main); font-size: 11px; font-weight: 800; cursor: pointer; transition: 0.2s; }
+        .t-btn.active, .t-btn:hover { background: var(--coral-main); color: white; }
+
+        .metric-stack { display: flex; flex-direction: row; gap: 10px; margin-bottom: 20px; }
+        .metric-selector { flex: 1; padding: 12px 20px; border-radius: 20px; font-size: 13px; font-weight: 800; color: var(--text-muted); background: #fafafa; cursor: pointer; transition: 0.3s; text-align: center; border: 2px solid transparent;}
+        
+        .metric-selector[data-type="temp"].active { background: var(--coral-main); color: white; box-shadow: 0 4px 10px var(--coral-light); }
+        .metric-selector[data-type="hr"].active { background: var(--hr-blue); color: white; box-shadow: 0 4px 10px var(--hr-blue-light); }
+        .metric-selector[data-type="spo2"].active { background: var(--spo2-green); color: white; box-shadow: 0 4px 10px var(--spo2-green-light); }
+
+        /* Updated Canvas height */
+        .canvas-wrapper { position: relative; width: 100%; height: 550px; flex: 1; margin: 15px 0;}
+
+        .stats-summary-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 25px; padding-top: 25px; border-top: 2px solid #fafafa; }
+        .stat-summary-box { background: #fafafa; padding: 25px; border-radius: 24px; text-align: center; }
+        .summary-label { font-size: 11px; font-weight: 900; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 10px; }
+        .summary-value { font-size: 32px; font-weight: 900; color: var(--text-dark); }
+        .summary-time { font-size: 10px; color: var(--text-muted); font-weight: 700; display: block; margin-top: 5px; }
+
+        @media screen and (max-width: 900px) {
+            .app-wrapper { border-radius: 0; margin: 0; min-height: 100vh;}
+            .coral-sidebar { width: 15px; }
+            .main-content { grid-template-columns: 1fr; padding: 15px; gap: 15px;}
+            .live-stats-grid { grid-template-columns: 1fr; }
+            .canvas-wrapper { height: 420px; }
+            .metric-stack { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="authScreen" class="form-container">
+        <h2>Real-Time Health Monitor</h2>
+        <input type="email" id="email" placeholder="Email Address">
+        <input type="password" id="password" placeholder="Password">
+        <button id="loginBtn" class="primary-btn">Secure Login</button>
+        <p style="margin-top:20px; font-size:13px; color:var(--text-muted);">New patient? <a href="#" id="toggleSignup" style="color:var(--coral-main); font-weight:800;">Register here</a></p>
+    </div>
+
+    <div id="onboardingScreen" class="form-container hidden">
+        <h2>Patient Profile</h2>
+        <input type="text" id="pName" placeholder="Full Name">
+        <input type="number" id="pAge" placeholder="Age">
+        <input type="number" id="pWeight" placeholder="Weight (kg)">
+        <input type="number" id="pHeight" placeholder="Height (cm)">
+        <input type="text" id="pBlood" placeholder="Blood Group (e.g., O+)">
+        <input type="text" id="pAddress" placeholder="Home City">
+        <p style="text-align:left; font-size:12px; margin-top:15px; color:var(--text-muted); font-weight:700;">Hardware Pairing Code:</p>
+        <input type="text" id="pDeviceId" class="device-id-input" placeholder="Device ID (e.g., PATIENT_001)">
+        <button id="saveProfileBtn" class="primary-btn">Save & Connect</button>
+    </div>
+
+    <div id="dashboardScreen" class="app-wrapper hidden">
+        <div class="coral-sidebar"></div>
+        
+        <div class="main-content">
+            <div class="left-col">
+                <div class="card profile-card">
+                    <div class="profile-pic">👤</div>
+                    <h3 class="patient-name" id="dispName">Loading...</h3>
+                    <p class="patient-id" id="dispEmail">📍 <span id="dispAddress">Connecting...</span></p>
+                    
+                    <div class="vitals-grid">
+                        <div class="vital-item"><p>Age</p><h4 id="dispAge">--</h4></div>
+                        <div class="vital-item"><p>Weight</p><h4 id="dispWeight">-- Kg</h4></div>
+                        <div class="vital-item"><p>Height</p><h4 id="dispHeight">-- Cm</h4></div>
+                        <div class="vital-item"><p>Blood</p><h4 id="dispBlood">--</h4></div>
+                    </div>
+                    
+                    <p style="margin-top: 15px; font-size: 11px; color: var(--text-muted); font-weight: 700;">Paired ID: <span id="dispDevice">Unpaired</span></p>
+                    <a class="logout-link" id="logoutBtn">Log Out Securely</a>
+                </div>
+
+                <div class="card email-card">
+                    <h3>✉️ Contact Doctor</h3>
+                    <form id="alertForm">
+                        <input type="hidden" name="Patient_Name" id="fsPatientName">
+                        <input type="hidden" name="Live_Temp" id="fsTemp">
+                        <input type="hidden" name="Live_HeartRate" id="fsHr">
+                        
+                        <input type="email" name="Doctor_Email" class="email-input" placeholder="Doctor's Email Address" required>
+                        <textarea name="Message" class="email-textarea" placeholder="Alert details (e.g., Temperature spike detected...)" required></textarea>
+                        
+                        <button type="submit" id="sendAlertBtn" class="primary-btn email-btn">Send Alert to Doctor</button>
+                    </form>
+                </div>
+
+                <div class="card hospital-card">
+                    <h3>🏥 Clinics Near Patient</h3>
+                    <div id="hospitalList">
+                        <p style="font-size:12px; color:var(--text-muted); font-weight:600;">Fetching map data...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-col">
+                <div>
+                    <h1 class="header-title">Real-Time Health Monitor</h1>
+                    <p class="header-date" id="currentDate"></p>
+                </div>
+                
+                <div class="live-stats-grid">
+                    <div class="live-stat-card">
+                        <p>🌡️ Body Temp</p>
+                        <div class="stat-value-group">
+                            <h2 id="liveTempValue">--</h2><span id="unitTemp"></span>
+                        </div>
+                    </div>
+
+                    <div class="live-stat-card">
+                        <p>❤️ Heart Rate</p>
+                        <div class="stat-value-group">
+                            <h2 id="liveHrValue">--</h2><span id="unitHr"></span>
+                        </div>
+                    </div>
+
+                    <div class="live-stat-card">
+                        <p>🩸 Blood Oxygen</p>
+                        <div class="stat-value-group">
+                            <h2 id="liveSpo2Value">--</h2><span id="unitSpo2"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="chart-header">
+                        <h3>Vitals Timeline</h3>
+                        <div class="time-filters">
+                            <button class="t-btn active" data-time="30">Live Data</button>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-stack">
+                        <div class="metric-selector active" data-type="temp">🌡️ Temp</div>
+                        <div class="metric-selector" data-type="hr">❤️ Heart Rate</div>
+                        <div class="metric-selector" data-type="spo2">🩸 SpO2</div>
+                    </div>
+                    
+                    <div class="canvas-wrapper">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+
+                    <div class="stats-summary-container">
+                        <div class="stat-summary-box">
+                            <span class="summary-label" id="avgLabel">Average Temp</span>
+                            <span class="summary-value" id="avgDisplay">--</span>
+                        </div>
+                        <div class="stat-summary-box">
+                            <span class="summary-label" id="peakLabel">Peak Temp</span>
+                            <span class="summary-value" id="peakDisplay">--</span>
+                            <span class="summary-time" id="peakTimeDisplay"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB2MjD3dMKJUGOy5r470Y1Pxu6p2wcDLiU",
+            databaseURL: "https://fever-detector-53654-default-rtdb.asia-southeast1.firebasedatabase.app"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        const authScreen = document.getElementById('authScreen');
+        const onboardingScreen = document.getElementById('onboardingScreen');
+        const dashboardScreen = document.getElementById('dashboardScreen');
+        let isSignupMode = false;
+
+        const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+        document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-GB', dateOptions);
+
+        document.getElementById('toggleSignup').addEventListener('click', (e) => {
+            e.preventDefault(); isSignupMode = !isSignupMode;
+            document.getElementById('loginBtn').innerText = isSignupMode ? "Sign Up" : "Secure Login";
+            e.target.innerText = isSignupMode ? "Log in here" : "Register here";
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            const email = document.getElementById('email').value, pass = document.getElementById('password').value;
+            if (isSignupMode) createUserWithEmailAndPassword(auth, email, pass).catch(err => alert(err.message));
+            else signInWithEmailAndPassword(auth, email, pass).catch(err => alert(err.message));
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                get(ref(db, 'Users/' + user.uid + '/Profile')).then((snapshot) => {
+                    if (snapshot.exists()) { loadDashboardData(user, snapshot.val()); showScreen('dashboard'); } 
+                    else { showScreen('onboarding'); }
+                });
+            } else { showScreen('auth'); }
+        });
+
+        document.getElementById('saveProfileBtn').addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if(user) {
+                const addressInput = document.getElementById('pAddress').value || "Home";
+                const deviceIdInput = document.getElementById('pDeviceId').value.trim() || "PATIENT_001";
+                document.getElementById('saveProfileBtn').innerText = "Pairing...";
+
+                const saveToDatabase = (lat, lon) => {
+                    const profileData = {
+                        name: document.getElementById('pName').value, age: document.getElementById('pAge').value,
+                        weight: document.getElementById('pWeight').value, height: document.getElementById('pHeight').value,
+                        blood: document.getElementById('pBlood').value, address: addressInput,
+                        deviceId: deviceIdInput, lat: lat, lon: lon, email: user.email
+                    };
+                    set(ref(db, 'Users/' + user.uid + '/Profile'), profileData).then(() => {
+                        document.getElementById('saveProfileBtn').innerText = "Save & Connect";
+                        loadDashboardData(user, profileData); showScreen('dashboard');
+                    });
+                };
+                if (navigator.geolocation) navigator.geolocation.getCurrentPosition((pos) => saveToDatabase(pos.coords.latitude, pos.coords.longitude), () => saveToDatabase(22.6515, 88.4285), { timeout: 5000 });
+                else saveToDatabase(22.6515, 88.4285);
+            }
+        });
+
+        // Chart Data & Setup
+        let chartInstance = null;
+        let currentMetric = 'temp'; 
+        let liveLabels = [];
+        let liveData = { temp: [], hr: [], spo2: [] };
+
+        const chartColors = {
+            temp: { border: '#f48271', bg: 'rgba(244, 130, 113, 0.15)', name: "Temp", unit: "°F" },
+            hr:   { border: '#2563eb', bg: 'rgba(37, 99, 235, 0.15)', name: "Heart Rate", unit: " BPM" },
+            spo2: { border: '#2ecc71', bg: 'rgba(46, 204, 113, 0.15)', name: "SpO2", unit: "%" }
+        };
+
+        document.querySelectorAll('.metric-selector').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.metric-selector').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentMetric = e.target.getAttribute('data-type');
+                refreshChart();
+            });
+        });
+
+        function refreshChart() {
+            if(!chartInstance) return;
+            
+            const dataArr = [...liveData[currentMetric]];
+
+            chartInstance.data.datasets[0].borderColor = chartColors[currentMetric].border;
+            chartInstance.data.datasets[0].backgroundColor = chartColors[currentMetric].bg;
+            chartInstance.data.datasets[0].data = dataArr;
+
+            if (dataArr.length > 0) {
+                const validData = dataArr.filter(val => !isNaN(val) && val !== null);
+                if(validData.length > 0) {
+                    let minVal = Math.min(...validData);
+                    let maxVal = Math.max(...validData);
+                    
+                    if(currentMetric === 'temp') {
+                        minVal = Math.min(minVal - 2, 95); 
+                        maxVal = Math.max(maxVal + 2, 105); 
+                    } else if (currentMetric === 'hr') {
+                        minVal = Math.min(minVal - 15, 50); 
+                        maxVal = Math.max(maxVal + 15, 130);
+                    } else if (currentMetric === 'spo2') {
+                        minVal = 80; 
+                        maxVal = 100;
+                    }
+
+                    chartInstance.options.scales.y.min = Math.floor(minVal);
+                    chartInstance.options.scales.y.max = Math.ceil(maxVal);
+
+                    const avg = validData.reduce((a, b) => a + b, 0) / validData.length;
+                    const unit = chartColors[currentMetric].unit;
+                    const peakIndex = dataArr.indexOf(Math.max(...validData));
+                    const peakTime = liveLabels[peakIndex] || "--:--";
+                    
+                    document.getElementById('avgDisplay').innerText = avg.toFixed(1) + unit;
+                    document.getElementById('peakDisplay').innerText = Math.max(...validData).toFixed(1) + unit;
+                    document.getElementById('peakTimeDisplay').innerText = "at " + peakTime;
+                    document.getElementById('avgLabel').innerText = "Average " + chartColors[currentMetric].name;
+                    document.getElementById('peakLabel').innerText = "Peak " + chartColors[currentMetric].name;
+                }
+            }
+
+            chartInstance.update();
+        }
+
+        function loadDashboardData(user, profile) {
+            document.getElementById('dispName').innerText = profile.name || "Patient";
+            document.getElementById('dispAddress').innerText = profile.address || "Location Hidden";
+            document.getElementById('dispAge').innerText = profile.age || "--";
+            document.getElementById('dispWeight').innerText = profile.weight ? profile.weight + " Kg" : "--";
+            document.getElementById('dispHeight').innerText = profile.height ? profile.height + " Cm" : "--";
+            document.getElementById('dispBlood').innerText = profile.blood || "--";
+            document.getElementById('dispDevice').innerText = profile.deviceId || "Unpaired";
+
+            findNearbyHospitals(profile.lat || 22.6515, profile.lon || 88.4285);
+
+            if(chartInstance) chartInstance.destroy();
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { 
+                    labels: liveLabels, 
+                    datasets: [{ 
+                        label: 'Data', 
+                        data: liveData.temp, 
+                        borderColor: chartColors.temp.border, 
+                        backgroundColor: chartColors.temp.bg,
+                        borderWidth: 4, tension: 0.4, fill: true, pointRadius: 3, pointHoverRadius: 6
+                    }] 
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, 
+                    animation: { duration: 0 }, 
+                    scales: { 
+                        y: { 
+                            beginAtZero: false,
+                            grid: { borderDash: [5, 5], color: '#f0f0f0' },
+                            ticks: { font: { weight: 'bold' } }
+                        }, 
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 8, maxRotation: 0, font: { size: 10, family: "'Nunito', sans-serif" } } } 
+                    } 
+                }
+            });
+
+            const targetDevice = profile.deviceId || "PATIENT_001";
+            
+            onValue(ref(db, '/Patients/' + targetDevice + '/LiveVitals'), (snap) => {
+                const data = snap.val();
+                if(data) {
+                    const timeNow = new Date().toLocaleTimeString('en-US', {hour: 'numeric', minute:'2-digit', second: '2-digit', hour12: true});
+                    
+                    let t = data.Temperature ? parseFloat(data.Temperature) : (liveData.temp.length > 0 ? liveData.temp[liveData.temp.length-1] : 0);
+                    let hr = data.HeartRate ? parseInt(data.HeartRate) : (liveData.hr.length > 0 ? liveData.hr[liveData.hr.length-1] : 0);
+                    let spo2 = data.SpO2 ? parseInt(data.SpO2) : (liveData.spo2.length > 0 ? liveData.spo2[liveData.spo2.length-1] : 0);
+
+                    if(data.Temperature) {
+                        document.getElementById('liveTempValue').innerText = parseFloat(data.Temperature).toFixed(2);
+                        document.getElementById('unitTemp').innerText = '°F';
+                    }
+                    if(data.HeartRate) {
+                        document.getElementById('liveHrValue').innerText = parseInt(data.HeartRate);
+                        document.getElementById('unitHr').innerText = 'BPM';
+                    }
+                    if(data.SpO2) {
+                        document.getElementById('liveSpo2Value').innerText = parseInt(data.SpO2);
+                        document.getElementById('unitSpo2').innerText = '%';
+                    }
+
+                    if(t > 0 || hr > 0 || spo2 > 0) {
+                        if(liveLabels.length > 50) { 
+                            liveLabels.shift(); 
+                            liveData.temp.shift(); 
+                            liveData.hr.shift(); 
+                            liveData.spo2.shift(); 
+                        }
+                        
+                        liveLabels.push(timeNow);
+                        liveData.temp.push(t);
+                        liveData.hr.push(hr);
+                        liveData.spo2.push(spo2);
+                        
+                        refreshChart();
+                    }
+                }
+            });
+        }
+
+        async function findNearbyHospitals(lat, lon) {
+            const list = document.getElementById('hospitalList');
+            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(`[out:json][timeout:15];(node["amenity"="hospital"](around:5000,${lat},${lon});way["amenity"="hospital"](around:5000,${lat},${lon});node["amenity"="clinic"](around:5000,${lat},${lon}););out center;`)}`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                list.innerHTML = "";
+                if(!data.elements || data.elements.length === 0) { list.innerHTML = "<p style='font-size:12px; color:gray;'>No medical centers found nearby.</p>"; return; }
+                
+                let hospitals = data.elements.map(el => {
+                    const clat = el.lat || (el.center && el.center.lat), clon = el.lon || (el.center && el.center.lon);
+                    return clat && clon ? { ...el, dist: calcDist(lat, lon, clat, clon) } : null;
+                }).filter(el => el !== null).sort((a, b) => a.dist - b.dist).slice(0, 3);
+                
+                hospitals.forEach(el => {
+                    const name = el.tags.name || "Local Clinic";
+                    list.innerHTML += `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}" target="_blank" style="text-decoration:none;"><div class="hospital-item"><p class="h-name">${name} 🔗</p><p class="h-dist">📍 ${el.dist.toFixed(1)} km from patient</p></div></a>`;
+                });
+            } catch(err) { list.innerHTML = `<p style='font-size:12px; color:red;'>Map server busy. Retrying...</p>`; setTimeout(() => findNearbyHospitals(lat, lon), 5000); }
+        }
+
+        function calcDist(lat1, lon1, lat2, lon2) {
+            const R = 6371, dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+        }
+
+        function showScreen(s) {
+            authScreen.classList.add('hidden'); onboardingScreen.classList.add('hidden'); dashboardScreen.classList.add('hidden');
+            if(s === 'auth') authScreen.classList.remove('hidden');
+            if(s === 'onboarding') onboardingScreen.classList.remove('hidden');
+            if(s === 'dashboard') dashboardScreen.classList.remove('hidden');
+        }
+
+        // Formspree Logic
+        document.getElementById('alertForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('sendAlertBtn');
+            
+            document.getElementById('fsPatientName').value = document.getElementById('dispName').innerText;
+            document.getElementById('fsTemp').value = document.getElementById('liveTempValue').innerText + " °F";
+            document.getElementById('fsHr').value = document.getElementById('liveHrValue').innerText + " BPM";
+            
+            btn.innerText = "Sending...";
+            btn.style.opacity = "0.7";
+
+            try {
+                // IMPORTANT: Replace "YOUR_FORMSPREE_ID" with your actual form endpoint ID
+                const response = await fetch("https://formspree.io/f/xdarjbyj", {
+                    method: "POST",
+                    body: new FormData(this),
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    btn.innerText = "Alert Sent Successfully!";
+                    btn.style.background = "#2ecc71";
+                    this.reset();
+                    
+                    setTimeout(() => {
+                        btn.innerText = "Send Alert to Doctor";
+                        btn.style.background = "var(--hr-blue)";
+                        btn.style.opacity = "1";
+                    }, 3000);
+                } else {
+                    alert("Oops! There was a problem sending the alert.");
+                    btn.innerText = "Send Alert to Doctor";
+                    btn.style.opacity = "1";
+                }
+            } catch (error) {
+                alert("Network error. Please check your connection.");
+                btn.innerText = "Send Alert to Doctor";
+                btn.style.opacity = "1";
+            }
+        });
+    </script>
+</body>
+</html>
